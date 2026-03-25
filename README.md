@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # RepoDoc
 
 **Living codebase documentation engine powered by Claude Code CLI.**
@@ -66,15 +65,19 @@ curl -X POST http://localhost:3000/api/repos/<repo-id>/trigger
 |--------|------|-------------|
 | `POST` | `/api/customers` | Create a customer |
 | `GET`  | `/api/customers` | List all customers |
+| `GET`  | `/api/customers/:id` | Get a customer |
 | `POST` | `/api/customers/:id/repos` | Connect a repo |
 | `GET`  | `/api/customers/:id/repos` | List customer's repos |
 | `DELETE` | `/api/customers/:id/repos/:repoId` | Disconnect a repo |
 | `POST` | `/api/repos/:repoId/trigger` | Manual run |
-| `GET`  | `/api/repos/:repoId/jobs` | Job history |
+| `GET`  | `/api/repos/:repoId/jobs` | Job history (default 20, max 100) |
+| `GET`  | `/api/repos/:repoId/jobs/:jobId` | Get a specific job |
 | `GET`  | `/api/admin/stats` | System stats |
+| `GET`  | `/api/admin/jobs` | Recent jobs (last 50, with customer email) |
+| `POST` | `/api/admin/cron/run` | Force a daily cron pass |
 | `POST` | `/webhook/github` | GitHub webhook receiver |
 | `POST` | `/webhook/stripe` | Stripe webhook receiver |
-| `GET`  | `/api/health` | Health check |
+| `GET`  | `/api/health` | Health check with queue and job stats |
 
 ## Pricing tiers
 
@@ -82,7 +85,9 @@ curl -X POST http://localhost:3000/api/repos/<repo-id>/trigger
 |------|-------|-------|---------|
 | Starter | $99/mo | 3 | Webhook only |
 | Pro | $299/mo | 15 | Webhook + daily cron |
-| Team | $799/mo | Unlimited | Webhook + daily + priority |
+| Team | $799/mo | Unlimited | Webhook + daily cron |
+
+Cron runs start 5 minutes after server startup, then repeat every 24 hours. Starter plan repos are webhook-triggered only.
 
 ## Deployment
 
@@ -101,10 +106,27 @@ Set all environment variables from `.env.example` in your Railway project dashbo
 
 See `.env.example` for a full list. Required:
 
-- `ANTHROPIC_API_KEY` — Claude API key
-- `GITHUB_TOKEN` — GitHub app or PAT
-- `GITHUB_WEBHOOK_SECRET` — Shared secret for webhook signature validation
-- `BASE_URL` — Your deployed URL (for webhook registration)
+| Variable | Description |
+|----------|-------------|
+| `ANTHROPIC_API_KEY` | Claude API key |
+| `GITHUB_TOKEN` | GitHub app token or PAT with `repo` + `admin:repo_hook` scopes |
+| `GITHUB_WEBHOOK_SECRET` | Shared secret for webhook signature validation |
+| `BASE_URL` | Your deployed URL (used when registering webhooks) |
+| `STRIPE_SECRET_KEY` | Stripe secret key (for subscription management) |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret |
+| `STRIPE_PRICE_STARTER` | Stripe Price ID for the Starter plan |
+| `STRIPE_PRICE_PRO` | Stripe Price ID for the Pro plan |
+| `STRIPE_PRICE_TEAM` | Stripe Price ID for the Team plan |
+
+Optional:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `3000` | HTTP server port |
+| `WORK_DIR` | `/tmp/repodoc-runs` | Where repos are cloned during runs |
+| `DB_PATH` | `data/repodoc.db` | SQLite database path |
+| `MAX_CONCURRENT` | `3` | Max simultaneous Claude Code processes |
+| `NODE_ENV` | — | Set to `test` to suppress cron on startup |
 
 ## Architecture
 
@@ -113,22 +135,40 @@ Trigger (webhook / cron / manual)
     ↓
 Express server (server.js)
     ↓
-Job queue (src/queue.js) — max 3 concurrent
+Job queue (queue.js) — max 3 concurrent (FIFO, in-memory)
     ↓
-Claude Code runner (src/runner.js)
+Claude Code runner (runner.js)
+    ├─ git clone --depth 50
+    ├─ Discovers changed files via git diff-tree
+    ├─ Writes .mcp.json (filesystem + github MCP servers)
+    └─ claude -p --bare --output-format stream-json
+           ↓
+       MCP servers: filesystem + github
+           ↓
+       PR opened on customer's repo
     ↓
-claude -p --bare --output-format stream-json
-    ↓
-MCP servers: filesystem + github
-    ↓
-PR opened on customer's repo
-    ↓
-Job result saved to SQLite (src/db.js)
+Job result saved to SQLite (db.js)
 ```
+
+### Data model
+
+- **customers** — email, plan (`starter`|`pro`|`team`), stripe_id, status (`active`|`suspended`|`cancelled`)
+- **repos** — owner, name, default_branch, webhook_id, active flag; scoped to a customer
+- **jobs** — trigger type, commit SHA, status, PR URL, run log, token counts, cost in cents, duration
+
+### Rate limiting
+
+- `/api/*` — 100 requests per 15 minutes
+- `/webhook/*` — 300 requests per minute
+
+### Stripe integration
+
+The `/webhook/stripe` endpoint handles:
+- `customer.subscription.created/updated` — updates plan
+- `customer.subscription.deleted` — marks customer `cancelled`
+- `invoice.payment_failed` — marks customer `suspended`
+- `invoice.payment_succeeded` — reactivates a suspended customer
 
 ## License
 
 MIT
-=======
-# repodoc
->>>>>>> 924084018ecb24270db704ef8bf04f6dd62570e4
