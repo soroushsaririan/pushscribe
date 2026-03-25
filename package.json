@@ -1,0 +1,27 @@
+{
+  "name": "repodoc",
+  "version": "1.0.0",
+  "description": "Living codebase documentation engine powered by Claude Code",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "worker": "node src/worker.js",
+    "setup": "node scripts/setup.js"
+  },
+  "dependencies": {
+    "@octokit/rest": "^21.0.0",
+    "better-sqlite3": "^11.0.0",
+    "crypto": "^1.0.1",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.4.0",
+    "simple-git": "^3.27.0",
+    "stripe": "^16.0.0",
+    "uuid": "^10.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
