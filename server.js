@@ -23,6 +23,9 @@ const PORT      = parseInt(process.env.PORT ?? '3000', 10)
 
 const app = express()
 
+// Trust Railway's proxy (required for express-rate-limit in production)
+app.set('trust proxy', 1)
+
 // ─── Body parsing ──────────────────────────────────────────────────────────
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
