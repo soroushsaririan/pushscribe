@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PushScribe — AI-Powered Documentation for GitHub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #080808;
+      --surface:  #111111;
+      --border:   #1e1e1e;
+      --muted:    #888;
+      --text:     #e8e8e8;
+      --accent:   #7c6af7;
+      --accent2:  #5b8af0;
+      --green:    #3ecf8e;
+      --radius:   12px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+      line-height: 1.6;
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+
+    /* ── Nav ── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      padding: 0 32px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(8,8,8,0.8);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid transparent;
+      transition: border-color 0.3s;
+    }
+    nav.scrolled { border-bottom-color: var(--border); }
+
+    .nav-logo {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text);
+      text-decoration: none;
+      letter-spacing: -0.3px;
+    }
+    .nav-logo span { color: var(--accent); }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      list-style: none;
+    }
+    .nav-links a {
+      font-size: 14px;
+      color: var(--muted);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--text); }
+
+    .nav-cta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .btn-ghost {
+      padding: 7px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--muted);
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .btn-ghost:hover { color: var(--text); border-color: #444; }
+
+    .btn-primary {
+      padding: 7px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      background: var(--accent);
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .btn-primary:hover { background: #6a59e0; transform: translateY(-1px); }
+
+    /* ── Hero ── */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 120px 24px 80px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Radial glow behind hero */
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -20%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 900px;
+      height: 600px;
+      background: radial-gradient(ellipse at center, rgba(124,106,247,0.15) 0%, transparent 65%);
+      pointer-events: none;
+    }
+
+    /* Animated grid lines */
+    .hero-grid {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+      background-size: 60px 60px;
+      mask-image: radial-gradient(ellipse 80% 60% at 50% 50%, black 30%, transparent 100%);
+      pointer-events: none;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      background: rgba(124,106,247,0.12);
+      border: 1px solid rgba(124,106,247,0.3);
+      border-radius: 100px;
+      font-size: 12px;
+      font-weight: 500;
+      color: #a594ff;
+      margin-bottom: 28px;
+      opacity: 0;
+      transform: translateY(16px);
+      animation: fadeUp 0.6s ease 0.1s forwards;
+    }
+
+    .hero h1 {
+      font-size: clamp(42px, 7vw, 80px);
+      font-weight: 800;
+      line-height: 1.07;
+      letter-spacing: -2.5px;
+      max-width: 900px;
+      opacity: 0;
+      transform: translateY(20px);
+      animation: fadeUp 0.6s ease 0.2s forwards;
+    }
+
+    .gradient-text {
+      background: linear-gradient(135deg, #a594ff 0%, #7c6af7 40%, #5b8af0 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero p {
+      font-size: clamp(16px, 2.2vw, 20px);
+      color: var(--muted);
+      max-width: 560px;
+      margin: 24px auto 0;
+      line-height: 1.6;
+      opacity: 0;
+      transform: translateY(20px);
+      animation: fadeUp 0.6s ease 0.35s forwards;
+    }
+
+    .hero-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 36px;
+      flex-wrap: wrap;
+      justify-content: center;
+      opacity: 0;
+      transform: translateY(20px);
+      animation: fadeUp 0.6s ease 0.5s forwards;
+    }
+
+    .btn-hero {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 13px 26px;
+      font-size: 15px;
+      font-weight: 600;
+      color: #fff;
+      background: var(--accent);
+      border: none;
+      border-radius: 10px;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 0 30px rgba(124,106,247,0.3);
+    }
+    .btn-hero:hover {
+      background: #6a59e0;
+      transform: translateY(-2px);
+      box-shadow: 0 0 50px rgba(124,106,247,0.45);
+    }
+
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 13px 26px;
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--muted);
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-secondary:hover { color: var(--text); border-color: #444; }
+
+    .hero-hint {
+      margin-top: 16px;
+      font-size: 13px;
+      color: #555;
+      opacity: 0;
+      animation: fadeUp 0.6s ease 0.65s forwards;
+    }
+
+    /* ── Terminal demo window ── */
+    .demo-window {
+      width: 100%;
+      max-width: 780px;
+      margin: 72px auto 0;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: #0e0e0e;
+      overflow: hidden;
+      box-shadow: 0 40px 120px rgba(0,0,0,0.5);
+      opacity: 0;
+      transform: translateY(30px) scale(0.98);
+      animation: fadeUp 0.8s ease 0.7s forwards;
+    }
+
+    .demo-titlebar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 12px 16px;
+      background: #161616;
+      border-bottom: 1px solid var(--border);
+    }
+    .dot { width: 12px; height: 12px; border-radius: 50%; }
+    .dot-red   { background: #ff5f57; }
+    .dot-yellow{ background: #febc2e; }
+    .dot-green { background: #28c840; }
+    .demo-title {
+      flex: 1;
+      text-align: center;
+      font-size: 12px;
+      color: #555;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .demo-body {
+      padding: 20px 24px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      line-height: 1.75;
+      min-height: 200px;
+    }
+
+    .line { display: block; }
+    .line-cmd { color: #7c6af7; }
+    .line-info { color: var(--muted); }
+    .line-ok   { color: var(--green); }
+    .line-dim  { color: #444; }
+
+    /* Typing animation for each line */
+    .typed { overflow: hidden; white-space: nowrap; width: 0; }
+    .typed-1 { animation: typing 0.8s steps(40) 1.4s forwards; }
+    .typed-2 { animation: typing 1.2s steps(60) 2.4s forwards; }
+    .typed-3 { animation: typing 0.6s steps(30) 3.8s forwards; }
+    .typed-4 { animation: typing 0.7s steps(35) 4.6s forwards; }
+    .typed-5 { animation: typing 0.5s steps(25) 5.5s forwards; }
+    .typed-6 { animation: typing 0.9s steps(45) 6.2s forwards; }
+
+    /* Blinking cursor */
+    .cursor {
+      display: inline-block;
+      width: 8px;
+      height: 14px;
+      background: var(--accent);
+      vertical-align: middle;
+      margin-left: 2px;
+      animation: blink 1s step-end infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+    @keyframes typing {
+      from { width: 0; }
+      to   { width: 100%; }
+    }
+    @keyframes fadeUp {
+      to { opacity: 1; transform: none; }
+    }
+
+    /* ── Logos / social proof ── */
+    .proof {
+      padding: 48px 24px;
+      text-align: center;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .proof p {
+      font-size: 13px;
+      color: #444;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      margin-bottom: 24px;
+    }
+    .proof-logos {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 48px;
+      flex-wrap: wrap;
+    }
+    .proof-logos span {
+      font-size: 15px;
+      font-weight: 600;
+      color: #333;
+      letter-spacing: -0.3px;
+    }
+
+    /* ── Section shared ── */
+    section { padding: 100px 24px; }
+
+    .section-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.4px;
+      color: var(--accent);
+      margin-bottom: 16px;
+    }
+
+    h2 {
+      font-size: clamp(28px, 4vw, 44px);
+      font-weight: 800;
+      letter-spacing: -1.5px;
+      line-height: 1.1;
+      color: var(--text);
+    }
+
+    .section-sub {
+      font-size: 17px;
+      color: var(--muted);
+      max-width: 480px;
+      margin-top: 14px;
+      line-height: 1.6;
+    }
+
+    /* ── How it works ── */
+    .how {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .how-header { margin-bottom: 64px; }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 2px;
+      background: var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .step {
+      background: var(--surface);
+      padding: 36px 32px;
+      position: relative;
+      transition: background 0.2s;
+    }
+    .step:hover { background: #141414; }
+
+    .step-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: #444;
+      margin-bottom: 20px;
+    }
+
+    .step-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      margin-bottom: 20px;
+    }
+    .step-icon.purple { background: rgba(124,106,247,0.12); }
+    .step-icon.blue   { background: rgba(91,138,240,0.12); }
+    .step-icon.green  { background: rgba(62,207,142,0.12); }
+    .step-icon.orange { background: rgba(246,173,85,0.12); }
+
+    .step h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 10px;
+      letter-spacing: -0.3px;
+    }
+    .step p {
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* ── Features ── */
+    .features-wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .features-header { margin-bottom: 64px; }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2px;
+      background: var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .feature-card {
+      background: var(--surface);
+      padding: 32px;
+      transition: background 0.2s;
+    }
+    .feature-card:hover { background: #141414; }
+
+    .feature-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      margin-bottom: 18px;
+    }
+
+    .feature-card h3 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+    .feature-card p {
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* ── Code block ── */
+    .code-section {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .code-wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 80px;
+      align-items: center;
+    }
+    @media (max-width: 768px) {
+      .code-wrap { grid-template-columns: 1fr; gap: 40px; }
+    }
+
+    .code-block {
+      background: #0a0a0a;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .code-block-header {
+      padding: 12px 16px;
+      background: #111;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      color: #555;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .file-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+    pre {
+      padding: 20px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      line-height: 1.7;
+      color: #ccc;
+      overflow-x: auto;
+    }
+    .kw  { color: #c678dd; }
+    .str { color: #98c379; }
+    .cm  { color: #5c6370; }
+    .fn  { color: #61afef; }
+    .num { color: #d19a66; }
+
+    /* ── Pricing ── */
+    .pricing-wrap {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+    .pricing-header { text-align: center; margin-bottom: 64px; }
+    .pricing-header .section-sub { margin: 14px auto 0; }
+
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+    }
+
+    .plan-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      transition: border-color 0.2s, transform 0.2s;
+      position: relative;
+    }
+    .plan-card:hover { border-color: #333; transform: translateY(-2px); }
+    .plan-card.featured {
+      border-color: var(--accent);
+      background: linear-gradient(180deg, rgba(124,106,247,0.06) 0%, var(--surface) 100%);
+    }
+    .plan-card.featured:hover { border-color: #9585ff; }
+
+    .plan-badge {
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--accent);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 12px;
+      border-radius: 100px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+
+    .plan-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    .plan-price {
+      font-size: 40px;
+      font-weight: 800;
+      color: var(--text);
+      letter-spacing: -1.5px;
+      line-height: 1;
+      margin: 16px 0 4px;
+    }
+    .plan-price sup {
+      font-size: 20px;
+      font-weight: 600;
+      vertical-align: top;
+      margin-top: 8px;
+    }
+    .plan-period {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 24px;
+    }
+
+    .plan-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 24px 0;
+    }
+
+    .plan-features {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .plan-features li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+    .plan-features li::before {
+      content: '';
+      width: 16px;
+      height: 16px;
+      background: rgba(62,207,142,0.15);
+      border-radius: 50%;
+      flex-shrink: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%233ecf8e'%3E%3Cpath d='M13.3 4.3a1 1 0 0 1 0 1.4l-6 6a1 1 0 0 1-1.4 0l-3-3a1 1 0 1 1 1.4-1.4L6.6 9.6l5.3-5.3a1 1 0 0 1 1.4 0z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: center;
+    }
+
+    .plan-cta {
+      display: block;
+      text-align: center;
+      padding: 11px;
+      border-radius: 9px;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      margin-top: 28px;
+      transition: all 0.2s;
+    }
+    .plan-cta.primary {
+      background: var(--accent);
+      color: #fff;
+    }
+    .plan-cta.primary:hover { background: #6a59e0; }
+    .plan-cta.ghost {
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .plan-cta.ghost:hover { border-color: #444; color: var(--text); }
+
+    /* ── CTA Banner ── */
+    .cta-section {
+      padding: 100px 24px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .cta-section::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 700px;
+      height: 400px;
+      background: radial-gradient(ellipse at center, rgba(124,106,247,0.12) 0%, transparent 65%);
+      pointer-events: none;
+    }
+    .cta-section h2 { font-size: clamp(32px, 5vw, 54px); }
+    .cta-section p {
+      color: var(--muted);
+      font-size: 17px;
+      max-width: 460px;
+      margin: 16px auto 36px;
+    }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 40px 24px;
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .footer-logo {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+      text-decoration: none;
+    }
+    .footer-logo span { color: var(--accent); }
+    .footer-copy {
+      font-size: 13px;
+      color: #444;
+    }
+    .footer-links {
+      display: flex;
+      gap: 24px;
+      list-style: none;
+    }
+    .footer-links a {
+      font-size: 13px;
+      color: #555;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .footer-links a:hover { color: var(--muted); }
+
+    /* ── Scroll reveal ── */
+    .reveal {
+      opacity: 0;
+      transform: translateY(28px);
+      transition: opacity 0.65s ease, transform 0.65s ease;
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: none;
+    }
+    .reveal-delay-1 { transition-delay: 0.1s; }
+    .reveal-delay-2 { transition-delay: 0.2s; }
+    .reveal-delay-3 { transition-delay: 0.3s; }
+
+    /* ── Mobile tweaks ── */
+    @media (max-width: 640px) {
+      nav { padding: 0 16px; }
+      .nav-links { display: none; }
+      .hero { padding: 100px 16px 60px; }
+      section { padding: 72px 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Nav ── -->
+<nav id="nav">
+  <a href="/" class="nav-logo">Push<span>Scribe</span></a>
+  <ul class="nav-links">
+    <li><a href="#how">How it works</a></li>
+    <li><a href="#features">Features</a></li>
+    <li><a href="#pricing">Pricing</a></li>
+  </ul>
+  <div class="nav-cta">
+    <a href="/app" class="btn-ghost">Dashboard</a>
+    <a href="/api/auth/github" class="btn-primary">Get started free</a>
+  </div>
+</nav>
+
+<!-- ── Hero ── -->
+<section class="hero">
+  <div class="hero-grid"></div>
+
+  <h1>
+    Your docs stay in sync.<br>
+    <span class="gradient-text">Automatically.</span>
+  </h1>
+
+  <p>PushScribe watches every commit to your GitHub repos and keeps your README, guides, and changelog perfectly up to date — no manual effort.</p>
+
+  <div class="hero-actions">
+    <a href="/api/auth/github" class="btn-hero">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.02 10.02 0 0 0 22 12.017C22 6.484 17.522 2 12 2z"/></svg>
+      Continue with GitHub
+    </a>
+    <a href="#how" class="btn-secondary">
+      See how it works
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </a>
+  </div>
+
+  <p class="hero-hint">Free for up to 3 repos &nbsp;·&nbsp; No credit card required</p>
+
+  <!-- Terminal demo -->
+  <div class="demo-window">
+    <div class="demo-titlebar">
+      <div class="dot dot-red"></div>
+      <div class="dot dot-yellow"></div>
+      <div class="dot dot-green"></div>
+      <span class="demo-title">pushscribe — runner</span>
+    </div>
+    <div class="demo-body">
+      <span class="line line-dim"># Push detected on main — running doc update...</span>
+      <span class="line line-cmd typed typed-1">$ pushscribe run --repo soroushsaririan/myapp</span>
+      <span class="line line-info typed typed-2">  Reading changed files: src/auth.js, src/api.js, README.md</span>
+      <span class="line line-info typed typed-3">  Analyzing 3 files, 284 changed lines...</span>
+      <span class="line line-info typed typed-4">  Updating README.md — API auth section</span>
+      <span class="line line-info typed typed-5">  Updating CHANGELOG.md — Added GitHub OAuth</span>
+      <span class="line line-ok  typed typed-6">  ✓ PR opened: github.com/you/repo/pull/42</span>
+      <span class="line"><span class="cursor"></span></span>
+    </div>
+  </div>
+</section>
+
+<!-- ── Social proof ── -->
+<div class="proof">
+  <p>Trusted by developers building on</p>
+  <div class="proof-logos">
+    <span>Node.js</span>
+    <span>Python</span>
+    <span>Go</span>
+    <span>TypeScript</span>
+    <span>Rust</span>
+    <span>Ruby</span>
+  </div>
+</div>
+
+<!-- ── How it works ── -->
+<section id="how">
+  <div class="how">
+    <div class="how-header reveal">
+      <div class="section-label">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><rect x="1" y="1" width="10" height="10" rx="2"/></svg>
+        How it works
+      </div>
+      <h2>Set it up once.<br>Forget it forever.</h2>
+      <p class="section-sub">Connect your repo in 30 seconds. PushScribe handles everything else on every push.</p>
+    </div>
+
+    <div class="steps reveal reveal-delay-1">
+      <div class="step">
+        <div class="step-num">01</div>
+        <div class="step-icon purple">🔗</div>
+        <h3>Connect your repo</h3>
+        <p>Sign in with GitHub and add any repo. We register a webhook automatically — no config files, no YAML.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">02</div>
+        <div class="step-icon blue">👁</div>
+        <h3>We watch every push</h3>
+        <p>When you push to your default branch, PushScribe instantly sees what changed and what needs updating.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">03</div>
+        <div class="step-icon green">🤖</div>
+        <h3>AI reads the diff</h3>
+        <p>AI reads your changed code files and writes precise, accurate documentation — not marketing fluff.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">04</div>
+        <div class="step-icon orange">📬</div>
+        <h3>PR arrives in minutes</h3>
+        <p>A pull request appears with updated README, docs, and CHANGELOG. Review, merge, done.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Code section ── -->
+<section class="code-section">
+  <div class="code-wrap">
+    <div class="reveal">
+      <div class="section-label">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M2 3l4 3-4 3M6 9h4"/></svg>
+        What you get
+      </div>
+      <h2>PRs that actually make sense</h2>
+      <p class="section-sub">PushScribe writes documentation the way a senior developer would — terse, accurate, and with real code examples.</p>
+      <br />
+      <p class="section-sub" style="color:#555; font-size:14px;">No hallucinated behavior. No marketing copy. Only what the code does.</p>
+    </div>
+    <div class="code-block reveal reveal-delay-1">
+      <div class="code-block-header">
+        <div class="file-dot"></div>
+        README.md — auto-generated diff
+      </div>
+      <pre><span class="cm">## Authentication</span>
+
+<span class="str">+### GitHub OAuth</span>
+<span class="str">+</span>
+<span class="str">+Sign in at `/api/auth/github`. On callback,</span>
+<span class="str">+PushScribe exchanges the OAuth code for a token,</span>
+<span class="str">+fetches the user's primary email, and upserts</span>
+<span class="str">+the customer row.</span>
+<span class="str">+</span>
+<span class="str">+A 7-day session cookie is set on success:</span>
+<span class="str">+```</span>
+<span class="str">+Set-Cookie: session=&lt;uuid&gt;; HttpOnly; SameSite=Lax</span>
+<span class="str">+```</span>
+<span class="str">+</span>
+<span class="str">+**Env vars required:**</span>
+<span class="str">+- `GITHUB_CLIENT_ID`</span>
+<span class="str">+- `GITHUB_CLIENT_SECRET`</span>
+<span class="cm"> </span>
+<span class="cm"> ## API Reference</span></pre>
+    </div>
+  </div>
+</section>
+
+<!-- ── Features ── -->
+<section id="features">
+  <div class="features-wrap">
+    <div class="features-header reveal">
+      <div class="section-label">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><polygon points="6,1 11,10 1,10"/></svg>
+        Features
+      </div>
+      <h2>Everything you need.<br>Nothing you don't.</h2>
+    </div>
+
+    <div class="features-grid">
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background:rgba(124,106,247,0.12)">⚡</div>
+        <h3>Webhook-driven</h3>
+        <p>Triggered the instant you push — no polling, no cron lag. Docs are updated before your team even reviews the code.</p>
+      </div>
+      <div class="feature-card reveal reveal-delay-1">
+        <div class="feature-icon" style="background:rgba(62,207,142,0.12)">🎯</div>
+        <h3>Surgical updates</h3>
+        <p>Only changed sections are rewritten. The rest of your docs stay exactly as you wrote them.</p>
+      </div>
+      <div class="feature-card reveal reveal-delay-2">
+        <div class="feature-icon" style="background:rgba(91,138,240,0.12)">📋</div>
+        <h3>CHANGELOG auto-fill</h3>
+        <p>Every run appends an entry to CHANGELOG.md in standard Keep a Changelog format. Releases write themselves.</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background:rgba(246,173,85,0.12)">🔒</div>
+        <h3>Secure by default</h3>
+        <p>Your GitHub token is stored encrypted per-session. Webhook payloads are verified with HMAC-SHA256.</p>
+      </div>
+      <div class="feature-card reveal reveal-delay-1">
+        <div class="feature-icon" style="background:rgba(255,100,100,0.1)">📊</div>
+        <h3>Run history</h3>
+        <p>Every documentation run is logged with its PR link, token usage, and full output — searchable from your dashboard.</p>
+      </div>
+      <div class="feature-card reveal reveal-delay-2">
+        <div class="feature-icon" style="background:rgba(62,207,142,0.12)">🔄</div>
+        <h3>Daily cron pass</h3>
+        <p>Even if you forget to push, a nightly pass keeps your docs fresh. Never ship stale documentation again.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Pricing ── -->
+<section id="pricing" style="background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
+  <div class="pricing-wrap">
+    <div class="pricing-header reveal">
+      <div class="section-label" style="justify-content:center">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><rect x="1" y="5" width="10" height="6" rx="1"/><path d="M4 5V3a2 2 0 0 1 4 0v2"/></svg>
+        Pricing
+      </div>
+      <h2>Simple, honest pricing</h2>
+      <p class="section-sub">Start free. Upgrade when you need more repos.</p>
+    </div>
+
+    <div class="pricing-grid">
+      <!-- Starter -->
+      <div class="plan-card reveal">
+        <div class="plan-name">Starter</div>
+        <div class="plan-price"><sup>$</sup>0</div>
+        <div class="plan-period">forever free</div>
+        <div class="plan-divider"></div>
+        <ul class="plan-features">
+          <li>Up to 3 repos</li>
+          <li>Webhook + manual triggers</li>
+          <li>README &amp; CHANGELOG updates</li>
+          <li>Run history (7 days)</li>
+          <li>Community support</li>
+        </ul>
+        <a href="/api/auth/github" class="plan-cta ghost">Get started free</a>
+      </div>
+
+      <!-- Pro -->
+      <div class="plan-card featured reveal reveal-delay-1">
+        <div class="plan-badge">Most popular</div>
+        <div class="plan-name">Pro</div>
+        <div class="plan-price"><sup>$</sup>19</div>
+        <div class="plan-period">per month</div>
+        <div class="plan-divider"></div>
+        <ul class="plan-features">
+          <li>Up to 15 repos</li>
+          <li>Everything in Starter</li>
+          <li>Full docs/ directory updates</li>
+          <li>Daily cron pass</li>
+          <li>Run history (90 days)</li>
+          <li>Priority support</li>
+        </ul>
+        <a href="/api/auth/github" class="plan-cta primary">Start free trial</a>
+      </div>
+
+      <!-- Team -->
+      <div class="plan-card reveal reveal-delay-2">
+        <div class="plan-name">Team</div>
+        <div class="plan-price"><sup>$</sup>79</div>
+        <div class="plan-period">per month</div>
+        <div class="plan-divider"></div>
+        <ul class="plan-features">
+          <li>Unlimited repos</li>
+          <li>Everything in Pro</li>
+          <li>Org-wide GitHub install</li>
+          <li>Custom doc templates</li>
+          <li>Unlimited run history</li>
+          <li>Dedicated support</li>
+        </ul>
+        <a href="/api/auth/github" class="plan-cta ghost">Contact us</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── CTA Banner ── -->
+<section class="cta-section">
+  <div class="section-label reveal" style="justify-content:center">
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M6 1l1.5 3 3.5.5-2.5 2.5.5 3.5L6 9l-3 1.5.5-3.5L1 4.5 4.5 4z"/></svg>
+    Get started today
+  </div>
+  <h2 class="reveal">Stop writing docs.<br><span class="gradient-text">Start shipping code.</span></h2>
+  <p class="reveal">Connect your first repo in under a minute.</p>
+  <div class="reveal">
+    <a href="/api/auth/github" class="btn-hero">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.02 10.02 0 0 0 22 12.017C22 6.484 17.522 2 12 2z"/></svg>
+      Continue with GitHub — it's free
+    </a>
+  </div>
+</section>
+
+<!-- ── Footer ── -->
+<footer>
+  <a href="/" class="footer-logo">Push<span>Scribe</span></a>
+  <ul class="footer-links">
+    <li><a href="#how">How it works</a></li>
+    <li><a href="#pricing">Pricing</a></li>
+    <li><a href="/app">Dashboard</a></li>
+  </ul>
+  <span class="footer-copy">© 2026 PushScribe. All rights reserved.</span>
+</footer>
+
+<script>
+  // ── Nav shadow on scroll ──
+  const nav = document.getElementById('nav')
+  window.addEventListener('scroll', () => {
+    nav.classList.toggle('scrolled', window.scrollY > 10)
+  }, { passive: true })
+
+  // ── Intersection Observer for scroll reveals ──
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible')
+        observer.unobserve(entry.target)
+      }
+    })
+  }, { threshold: 0.12 })
+
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el))
+
+  // ── Smooth scroll for anchor links ──
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      const target = document.querySelector(a.getAttribute('href'))
+      if (target) {
+        e.preventDefault()
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+    })
+  })
+</script>
+</body>
+</html>

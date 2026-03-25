@@ -16,7 +16,7 @@ const ROOT = join(__dirname, '..')
 
 console.log(`
 ╔══════════════════════════════════════════╗
-║        RepoDoc — First-run Setup         ║
+║        PushScribe — First-run Setup         ║
 ╚══════════════════════════════════════════╝
 `)
 
@@ -56,7 +56,7 @@ if (!apiKey || apiKey === 'sk-ant-...') {
 }
 
 // 5. Create work directory
-const workDir = process.env.WORK_DIR || '/tmp/repodoc-runs'
+const workDir = process.env.WORK_DIR || '/tmp/pushscribe-runs'
 mkdirSync(workDir, { recursive: true })
 console.log(`✓ Work dir ready: ${workDir}`)
 
@@ -66,21 +66,21 @@ console.log(`✓ Data dir ready`)
 
 // 7. Create a demo customer
 try {
-  const { default: db, customers, repos } = await import('../src/db.js')
+  const { default: db, customers, repos } = await import('./db.js')
   const { v4: uuidv4 } = await import('uuid')
 
-  const existing = customers.findByEmail('demo@repodoc.dev')
+  const existing = customers.findByEmail('demo@pushscribe.dev')
   if (!existing) {
     customers.create({
       id: uuidv4(),
-      email: 'demo@repodoc.dev',
+      email: 'demo@pushscribe.dev',
       plan: 'pro',
       stripe_id: null
     })
-    console.log(`✓ Demo customer created: demo@repodoc.dev (Pro plan)`)
-    console.log(`  Customer ID: ${customers.findByEmail('demo@repodoc.dev').id}`)
+    console.log(`✓ Demo customer created: demo@pushscribe.dev (Pro plan)`)
+    console.log(`  Customer ID: ${customers.findByEmail('demo@pushscribe.dev').id}`)
   } else {
-    console.log(`✓ Demo customer already exists: demo@repodoc.dev`)
+    console.log(`✓ Demo customer already exists: demo@pushscribe.dev`)
     console.log(`  Customer ID: ${existing.id}`)
   }
 

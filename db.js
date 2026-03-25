@@ -10,7 +10,7 @@ import { fileURLToPath } from 'url'
 import { mkdirSync } from 'fs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const DB_PATH = process.env.DB_PATH || join(__dirname, '..', 'data', 'repodoc.db')
+const DB_PATH = process.env.DB_PATH || join(__dirname, '..', 'data', 'pushscribe.db')
 
 // Ensure data directory exists
 mkdirSync(dirname(DB_PATH), { recursive: true })
@@ -64,19 +64,32 @@ db.exec(`
     finished_at   TEXT
   );
 
+  CREATE TABLE IF NOT EXISTS sessions (
+    id           TEXT PRIMARY KEY,
+    customer_id  TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+    github_token TEXT,
+    created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+    expires_at   TEXT NOT NULL
+  );
+
   CREATE INDEX IF NOT EXISTS idx_jobs_repo ON jobs(repo_id);
   CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
   CREATE INDEX IF NOT EXISTS idx_repos_customer ON repos(customer_id);
+  CREATE INDEX IF NOT EXISTS idx_sessions_customer ON sessions(customer_id);
 `)
+
+// Migrate: add github columns to customers if not present
+try { db.exec(`ALTER TABLE customers ADD COLUMN github_login TEXT`) } catch {}
+try { db.exec(`ALTER TABLE customers ADD COLUMN github_avatar TEXT`) } catch {}
 
 // ─── Customer operations ───────────────────────────────────────────────────
 
 export const customers = {
-  create({ id, email, plan = 'starter', stripe_id }) {
+  create({ id, email, plan = 'starter', stripe_id, github_login, github_avatar }) {
     return db.prepare(`
-      INSERT INTO customers (id, email, plan, stripe_id)
-      VALUES (@id, @email, @plan, @stripe_id)
-    `).run({ id, email, plan, stripe_id })
+      INSERT INTO customers (id, email, plan, stripe_id, github_login, github_avatar)
+      VALUES (@id, @email, @plan, @stripe_id, @github_login, @github_avatar)
+    `).run({ id, email, plan, stripe_id: stripe_id ?? null, github_login: github_login ?? null, github_avatar: github_avatar ?? null })
   },
 
   findById(id) {
@@ -103,8 +116,37 @@ export const customers = {
     `).run({ id, status })
   },
 
+  updateGithubInfo(id, github_login, github_avatar) {
+    return db.prepare(`
+      UPDATE customers SET github_login = @github_login, github_avatar = @github_avatar, updated_at = datetime('now') WHERE id = @id
+    `).run({ id, github_login, github_avatar })
+  },
+
   list() {
     return db.prepare('SELECT * FROM customers ORDER BY created_at DESC').all()
+  }
+}
+
+// ─── Session operations ─────────────────────────────────────────────────────
+
+export const sessions = {
+  create({ id, customer_id, github_token, expires_at }) {
+    return db.prepare(`
+      INSERT INTO sessions (id, customer_id, github_token, expires_at)
+      VALUES (@id, @customer_id, @github_token, @expires_at)
+    `).run({ id, customer_id, github_token: github_token ?? null, expires_at })
+  },
+
+  findById(id) {
+    return db.prepare('SELECT * FROM sessions WHERE id = ?').get(id)
+  },
+
+  delete(id) {
+    return db.prepare('DELETE FROM sessions WHERE id = ?').run(id)
+  },
+
+  deleteExpired() {
+    return db.prepare(`DELETE FROM sessions WHERE expires_at < datetime('now')`).run()
   }
 }
 
@@ -232,6 +274,20 @@ export const jobs = {
         AVG(duration_ms) as avg_duration_ms
       FROM jobs
     `).get()
+  },
+
+  statsByCustomer(customer_id) {
+    return db.prepare(`
+      SELECT
+        COUNT(*) as total,
+        SUM(CASE WHEN j.status = 'done' THEN 1 ELSE 0 END) as successful,
+        SUM(CASE WHEN j.status = 'failed' THEN 1 ELSE 0 END) as failed,
+        SUM(CASE WHEN j.status = 'running' THEN 1 ELSE 0 END) as running,
+        SUM(CASE WHEN j.status = 'queued' THEN 1 ELSE 0 END) as queued
+      FROM jobs j
+      JOIN repos r ON j.repo_id = r.id
+      WHERE r.customer_id = ?
+    `).get(customer_id)
   }
 }
 

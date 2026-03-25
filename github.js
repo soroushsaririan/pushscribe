@@ -1,7 +1,7 @@
 /**
  * github.js — GitHub API helpers
  *
- * Wraps Octokit for the operations RepoDoc needs:
+ * Wraps Octokit for the operations PushScribe needs:
  * - Registering / removing webhooks on customer repos
  * - Validating webhook signatures
  * - Fetching repo metadata

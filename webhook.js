@@ -6,9 +6,9 @@
  */
 
 import { Router } from 'express'
-import { repos, customers } from '../db.js'
-import { verifyWebhookSignature } from '../github.js'
-import { enqueue } from '../queue.js'
+import { repos, customers } from './db.js'
+import { verifyWebhookSignature } from './github.js'
+import { enqueue } from './queue.js'
 
 const router = Router()
 
