@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # RepoDoc
 
 **Living codebase documentation engine powered by Claude Code CLI.**
@@ -128,3 +129,6 @@ Job result saved to SQLite (src/db.js)
 ## License
 
 MIT
+=======
+# repodoc
+>>>>>>> 924084018ecb24270db704ef8bf04f6dd62570e4
