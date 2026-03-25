@@ -1,14 +1,14 @@
 <<<<<<< HEAD
-# RepoDoc
+# PushScribe
 
 **Living codebase documentation engine powered by Claude Code CLI.**
 
-RepoDoc connects to your GitHub repositories and automatically rewrites your docs every time code changes. No human writing required.
+PushScribe connects to your GitHub repositories and automatically rewrites your docs every time code changes. No human writing required.
 
 ## How it works
 
 1. A GitHub webhook fires when code is pushed to `main`
-2. RepoDoc enqueues a job and responds to GitHub in <100ms
+2. PushScribe enqueues a job and responds to GitHub in <100ms
 3. A headless `claude -p --bare` process clones the repo, reads what changed, rewrites the docs, and opens a PR
 4. You merge the PR — done
 
@@ -32,8 +32,8 @@ claude -p "<focused prompt>" \
 
 ```bash
 # 1. Clone and install
-git clone https://github.com/yourname/repodoc
-cd repodoc
+git clone https://github.com/yourname/pushscribe
+cd pushscribe
 npm install
 
 # 2. Configure
@@ -130,5 +130,5 @@ Job result saved to SQLite (src/db.js)
 
 MIT
 =======
-# repodoc
+# pushscribe
 >>>>>>> 924084018ecb24270db704ef8bf04f6dd62570e4

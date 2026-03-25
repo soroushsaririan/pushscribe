@@ -1,7 +1,7 @@
 /**
  * runner.js — Claude Code execution engine
  *
- * This is the heart of RepoDoc. It:
+ * This is the heart of PushScribe. It:
  * 1. Clones the target repo into an ephemeral working directory
  * 2. Builds a focused prompt based on what changed
  * 3. Spawns `claude -p --bare` with pre-approved tools
@@ -14,7 +14,7 @@ import { mkdirSync, rmSync, existsSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { execSync } from 'child_process'
 
-const WORK_DIR = process.env.WORK_DIR || '/tmp/repodoc-runs'
+const WORK_DIR = process.env.WORK_DIR || '/tmp/pushscribe-runs'
 const CLAUDE_BIN = process.env.CLAUDE_BIN || 'claude'
 
 // Cost per million tokens (claude-sonnet-4, approximate)
@@ -43,7 +43,7 @@ Your tasks:
 3. Add a new entry to CHANGELOG.md in Keep a Changelog format under [Unreleased].
 4. Stage only documentation files: git add README.md CHANGELOG.md docs/ 2>/dev/null || true
 5. Commit with message: "docs: auto-update $(date +%Y-%m-%d)"
-6. Push the commit to a new branch named: repodoc/auto-$(date +%Y%m%d-%H%M)
+6. Push the commit to a new branch named: pushscribe/auto-$(date +%Y%m%d-%H%M)
 7. Create a pull request to ${defaultBranch} titled "docs: auto-update $(date +%Y-%m-%d)" with a brief summary of what changed.
 
 Output the PR URL on the final line in this exact format:
@@ -64,19 +64,37 @@ function parseStreamOutput(rawOutput) {
   for (const line of lines) {
     try {
       const event = JSON.parse(line)
-      if (event.type === 'usage') {
-        inputTokens  += event.input_tokens  ?? 0
-        outputTokens += event.output_tokens ?? 0
+
+      // Assistant message: text is nested in message.content[].text
+      if (event.type === 'assistant' && event.message?.content) {
+        for (const block of event.message.content) {
+          if (block.type === 'text') {
+            textParts.push(block.text)
+            const match = block.text.match(/PR_URL:\s*(https:\/\/github\.com\/\S+)/i)
+            if (match) prUrl = match[1].trim()
+          }
+        }
+        const usage = event.message.usage
+        if (usage) {
+          inputTokens  += usage.input_tokens  ?? 0
+          outputTokens += usage.output_tokens ?? 0
+        }
       }
-      if (event.type === 'text' || event.type === 'assistant') {
-        const text = event.text ?? event.content ?? ''
-        textParts.push(text)
-        // Extract PR URL if present
-        const match = text.match(/PR_URL:\s*(https:\/\/github\.com\/\S+)/i)
-        if (match) prUrl = match[1].trim()
+
+      // Final result event — grab token totals and pr_url from result text
+      if (event.type === 'result') {
+        const usage = event.usage
+        if (usage) {
+          inputTokens  = usage.input_tokens  ?? inputTokens
+          outputTokens = usage.output_tokens ?? outputTokens
+        }
+        if (event.result) {
+          const match = event.result.match(/PR_URL:\s*(https:\/\/github\.com\/\S+)/i)
+          if (match) prUrl = match[1].trim()
+        }
       }
     } catch {
-      // Non-JSON line — include in log verbatim
+      // Non-JSON line — include verbatim
       textParts.push(line)
     }
   }
@@ -109,8 +127,11 @@ function getChangedFiles(repoDir, commitSha) {
       : `git log --since='24 hours ago' --name-only --format='' | sort -u`
     const output = execSync(cmd, { cwd: repoDir, encoding: 'utf8' })
     return output.trim().split('\n').filter(Boolean).filter(f =>
-      // Only show source files, not docs themselves
-      !f.startsWith('docs/') && !f.match(/README|CHANGELOG/i)
+      !f.startsWith('docs/') &&
+      !f.match(/README|CHANGELOG/i) &&
+      !f.startsWith('node_modules/') &&
+      !f.startsWith('vendor/') &&
+      !f.startsWith('.git/')
     )
   } catch {
     return []
@@ -118,7 +139,7 @@ function getChangedFiles(repoDir, commitSha) {
 }
 
 /**
- * Main entry point. Runs a full RepoDoc job for one repository.
+ * Main entry point. Runs a full PushScribe job for one repository.
  *
  * @param {object} params
  * @param {string} params.owner         - GitHub repo owner
@@ -150,8 +171,8 @@ export async function runDocJob({ owner, name, defaultBranch = 'main', plan = 's
     })
 
     // Configure git identity for the commit
-    execSync(`git config user.email "repodoc[bot]@repodoc.dev"`, { cwd: workDir })
-    execSync(`git config user.name "RepoDoc Bot"`, { cwd: workDir })
+    execSync(`git config user.email "pushscribe[bot]@pushscribe.dev"`, { cwd: workDir })
+    execSync(`git config user.name "PushScribe Bot"`, { cwd: workDir })
     // Store credentials for push
     execSync(`git config credential.helper store`, { cwd: workDir })
     writeFileSync(join(workDir, '.git-credentials'), `https://x-access-token:${token}@github.com\n`)
@@ -186,58 +207,46 @@ export async function runDocJob({ owner, name, defaultBranch = 'main', plan = 's
     // ── 4. Build the prompt ────────────────────────────────────────────────
     const prompt = buildPrompt({ owner, name, defaultBranch, changedFiles, commitSha, plan })
 
-    // ── 5. Spawn claude -p --bare ──────────────────────────────────────────
-    const allowedTools = [
-      'Read',
-      'Write',
-      'Bash(git log *)',
-      'Bash(git diff *)',
-      'Bash(git diff-tree *)',
-      'Bash(git add *)',
-      'Bash(git commit *)',
-      'Bash(git checkout *)',
-      'Bash(git push *)',
-      'Bash(git branch *)',
-      'Bash(date *)',
-      'Bash(sort *)',
-      'Bash(find * -name "*.md")',
-      'Bash(find * -name "*.ts")',
-      'Bash(find * -name "*.js")',
-      'Bash(find * -name "*.py")',
-      'Bash(find * -name "*.go")',
-      'Bash(cat *)',
-      'Bash(ls *)',
-    ].join(',')
-
+    // ── 5. Spawn claude --print ───────────────────────────────────────────
     const args = [
-      '-p', prompt,
-      '--bare',
-      '--allowedTools', allowedTools,
+      '--print',
+      '--dangerously-skip-permissions',
       '--output-format', 'stream-json',
+      '--verbose',
     ]
 
-    console.log(`[runner] Spawning: ${CLAUDE_BIN} -p "<prompt>" --bare --output-format stream-json`)
+    console.log(`[runner] Spawning: ${CLAUDE_BIN} --print --dangerously-skip-permissions --output-format stream-json`)
 
     const rawOutput = await new Promise((resolve, reject) => {
       const chunks = []
+      const errChunks = []
       const proc = spawn(CLAUDE_BIN, args, {
         cwd: workDir,
-        env: {
-          ...process.env,
-          ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
-          GITHUB_TOKEN: token,
-        },
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env: (() => {
+          const e = { ...process.env, GITHUB_TOKEN: token }
+          // Remove placeholder API key so Claude uses OAuth session instead
+          const key = e.ANTHROPIC_API_KEY
+          if (!key || key.endsWith('...')) delete e.ANTHROPIC_API_KEY
+          return e
+        })(),
         timeout: 10 * 60 * 1000, // 10-minute hard timeout
       })
 
+      // Write prompt via stdin and close to signal end of input
+      proc.stdin.write(prompt, 'utf8')
+      proc.stdin.end()
+
       proc.stdout.on('data', d => chunks.push(d.toString()))
-      proc.stderr.on('data', d => console.error('[claude stderr]', d.toString()))
+      proc.stderr.on('data', d => { errChunks.push(d.toString()); console.error('[claude stderr]', d.toString()) })
 
       proc.on('close', code => {
         if (code === 0 || code === null) {
           resolve(chunks.join(''))
         } else {
-          reject(new Error(`Claude Code exited with code ${code}`))
+          const stderr = errChunks.join('').slice(0, 500)
+          const stdout = chunks.join('').slice(0, 2000)
+          reject(new Error(`Claude Code exited with code ${code}: stderr=${stderr} stdout=${stdout}`))
         }
       })
       proc.on('error', reject)

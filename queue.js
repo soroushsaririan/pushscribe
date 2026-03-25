@@ -9,13 +9,17 @@
  */
 
 import { v4 as uuidv4 } from 'uuid'
-import { jobs, repos, customers } from './db.js'
+import { jobs, repos, customers, default as db } from './db.js'
 import { runDocJob } from './runner.js'
 
 const MAX_CONCURRENT = parseInt(process.env.MAX_CONCURRENT ?? '3', 10)
 
 let running = 0
 const waitQueue = []
+
+// On startup, mark any jobs left in 'running' state as failed (server was restarted mid-job)
+const fixed = db.prepare(`UPDATE jobs SET status = 'failed', error = 'Server restarted', finished_at = datetime('now') WHERE status = 'running'`).run()
+if (fixed.changes > 0) console.log(`[queue] Marked ${fixed.changes} stale running job(s) as failed`)
 
 /**
  * Process the next item in the wait queue if we have capacity.

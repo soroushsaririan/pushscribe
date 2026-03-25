@@ -1,5 +1,5 @@
 /**
- * server.js — RepoDoc main entry point
+ * server.js — PushScribe main entry point
  *
  * Express server that handles:
  * - Inbound GitHub & Stripe webhooks
@@ -14,25 +14,25 @@ import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { rateLimit } from 'express-rate-limit'
 
-import apiRouter     from './src/routes/api.js'
-import webhookRouter from './src/routes/webhook.js'
-import { startCron } from './src/cron.js'
+import apiRouter     from './api.js'
+import webhookRouter from './webhook.js'
+import { startCron } from './cron.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const PORT      = parseInt(process.env.PORT ?? '3000', 10)
 
 const app = express()
 
-// ─── Raw body capture (needed for signature verification) ──────────────────
-app.use((req, res, next) => {
-  let data = ''
-  req.on('data', chunk => { data += chunk })
-  req.on('end',  ()    => { req.rawBody = data; next() })
-})
-
 // ─── Body parsing ──────────────────────────────────────────────────────────
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
+
+// ─── Raw body capture for webhook signature verification ───────────────────
+// Scoped to /webhook only — must come after body parsers
+app.use('/webhook', (req, res, next) => {
+  req.rawBody = JSON.stringify(req.body)
+  next()
+})
 
 // ─── Security headers ──────────────────────────────────────────────────────
 app.use((req, res, next) => {
@@ -59,7 +59,16 @@ const webhookLimiter = rateLimit({
 app.use('/webhook',  webhookLimiter, webhookRouter)
 app.use('/api',      apiLimiter,     apiRouter)
 
-// ─── Static dashboard ──────────────────────────────────────────────────────
+// ─── Named page routes (must come before static) ───────────────────────────
+app.get('/', (req, res) => {
+  res.sendFile(join(__dirname, 'public', 'landing.html'))
+})
+
+app.get('/app', (req, res) => {
+  res.sendFile(join(__dirname, 'public', 'index.html'))
+})
+
+// ─── Static files ──────────────────────────────────────────────────────────
 app.use(express.static(join(__dirname, 'public')))
 
 // Catch-all → serve dashboard SPA
@@ -77,7 +86,7 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
   console.log(`
 ╔══════════════════════════════════════════╗
-║           RepoDoc is running             ║
+║           PushScribe is running             ║
 ╠══════════════════════════════════════════╣
 ║  Dashboard  →  http://localhost:${PORT}     ║
 ║  API        →  http://localhost:${PORT}/api ║

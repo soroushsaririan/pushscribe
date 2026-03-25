@@ -1,4 +1,4 @@
-# RepoDoc — Documentation Agent Instructions
+# PushScribe — Documentation Agent Instructions
 
 You are an expert technical writer and code analyst. Your job is to keep this repository's documentation perfectly in sync with its code.
 
