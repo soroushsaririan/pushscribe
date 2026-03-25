@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # RepoDoc
 
 **Living codebase documentation engine powered by Claude Code CLI.**
@@ -64,17 +63,21 @@ curl -X POST http://localhost:3000/api/repos/<repo-id>/trigger
 
 | Method | Path | Description |
 |--------|------|-------------|
+| `GET`  | `/api/health` | Health check with queue and job stats |
 | `POST` | `/api/customers` | Create a customer |
 | `GET`  | `/api/customers` | List all customers |
+| `GET`  | `/api/customers/:id` | Get a single customer |
 | `POST` | `/api/customers/:id/repos` | Connect a repo |
 | `GET`  | `/api/customers/:id/repos` | List customer's repos |
 | `DELETE` | `/api/customers/:id/repos/:repoId` | Disconnect a repo |
 | `POST` | `/api/repos/:repoId/trigger` | Manual run |
-| `GET`  | `/api/repos/:repoId/jobs` | Job history |
+| `GET`  | `/api/repos/:repoId/jobs` | Job history (default limit 20, max 100) |
+| `GET`  | `/api/repos/:repoId/jobs/:jobId` | Get single job |
 | `GET`  | `/api/admin/stats` | System stats |
-| `POST` | `/webhook/github` | GitHub webhook receiver |
-| `POST` | `/webhook/stripe` | Stripe webhook receiver |
-| `GET`  | `/api/health` | Health check |
+| `GET`  | `/api/admin/jobs` | Last 50 jobs |
+| `POST` | `/api/admin/cron/run` | Force a daily cron pass |
+| `POST` | `/webhook/github` | GitHub push event receiver |
+| `POST` | `/webhook/stripe` | Stripe billing event receiver |
 
 ## Pricing tiers
 
@@ -83,6 +86,8 @@ curl -X POST http://localhost:3000/api/repos/<repo-id>/trigger
 | Starter | $99/mo | 3 | Webhook only |
 | Pro | $299/mo | 15 | Webhook + daily cron |
 | Team | $799/mo | Unlimited | Webhook + daily + priority |
+
+Starter customers receive webhook-triggered runs only. Pro and Team plans also receive daily scheduled passes via cron.
 
 ## Deployment
 
@@ -101,10 +106,25 @@ Set all environment variables from `.env.example` in your Railway project dashbo
 
 See `.env.example` for a full list. Required:
 
-- `ANTHROPIC_API_KEY` — Claude API key
-- `GITHUB_TOKEN` — GitHub app or PAT
-- `GITHUB_WEBHOOK_SECRET` — Shared secret for webhook signature validation
-- `BASE_URL` — Your deployed URL (for webhook registration)
+| Variable | Description |
+|----------|-------------|
+| `ANTHROPIC_API_KEY` | Claude API key |
+| `GITHUB_TOKEN` | GitHub app or PAT (`repo` + `admin:repo_hook` scopes) |
+| `GITHUB_WEBHOOK_SECRET` | Shared secret for webhook HMAC-SHA256 validation |
+| `BASE_URL` | Your deployed URL (used when registering webhooks) |
+| `STRIPE_SECRET_KEY` | Stripe secret key for billing |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret |
+| `WORK_DIR` | Temp dir for repo clones (default `/tmp/repodoc-runs`) |
+
+Optional:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `3000` | HTTP listen port |
+| `NODE_ENV` | — | Set to `production` to enable all features |
+| `PRICE_STARTER` | `9900` | Starter plan price in cents |
+| `PRICE_PRO` | `29900` | Pro plan price in cents |
+| `PRICE_TEAM` | `79900` | Team plan price in cents |
 
 ## Architecture
 
@@ -113,9 +133,9 @@ Trigger (webhook / cron / manual)
     ↓
 Express server (server.js)
     ↓
-Job queue (src/queue.js) — max 3 concurrent
+Job queue (queue.js) — max 3 concurrent
     ↓
-Claude Code runner (src/runner.js)
+Claude Code runner (runner.js)
     ↓
 claude -p --bare --output-format stream-json
     ↓
@@ -123,12 +143,11 @@ MCP servers: filesystem + github
     ↓
 PR opened on customer's repo
     ↓
-Job result saved to SQLite (src/db.js)
+Job result saved to SQLite (db.js)
 ```
+
+See [docs/architecture.md](docs/architecture.md) for a deeper walkthrough.
 
 ## License
 
 MIT
-=======
-# repodoc
->>>>>>> 924084018ecb24270db704ef8bf04f6dd62570e4
