@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # RepoDoc
 
 **Living codebase documentation engine powered by Claude Code CLI.**
@@ -7,12 +6,12 @@ RepoDoc connects to your GitHub repositories and automatically rewrites your doc
 
 ## How it works
 
-1. A GitHub webhook fires when code is pushed to `main`
+1. A GitHub webhook fires when code is pushed to the default branch
 2. RepoDoc enqueues a job and responds to GitHub in <100ms
 3. A headless `claude -p --bare` process clones the repo, reads what changed, rewrites the docs, and opens a PR
 4. You merge the PR — done
 
-The core is a single Claude Code command:
+The core is a single Claude Code invocation:
 
 ```bash
 claude -p "<focused prompt>" \
@@ -32,7 +31,7 @@ claude -p "<focused prompt>" \
 
 ```bash
 # 1. Clone and install
-git clone https://github.com/yourname/repodoc
+git clone https://github.com/soroushsaririan/repodoc
 cd repodoc
 npm install
 
@@ -64,17 +63,21 @@ curl -X POST http://localhost:3000/api/repos/<repo-id>/trigger
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/api/customers` | Create a customer |
+| `POST` | `/api/customers` | Create a customer (idempotent by email) |
 | `GET`  | `/api/customers` | List all customers |
+| `GET`  | `/api/customers/:id` | Get a single customer |
 | `POST` | `/api/customers/:id/repos` | Connect a repo |
 | `GET`  | `/api/customers/:id/repos` | List customer's repos |
 | `DELETE` | `/api/customers/:id/repos/:repoId` | Disconnect a repo |
 | `POST` | `/api/repos/:repoId/trigger` | Manual run |
-| `GET`  | `/api/repos/:repoId/jobs` | Job history |
+| `GET`  | `/api/repos/:repoId/jobs` | Job history (max 100, default 20) |
+| `GET`  | `/api/repos/:repoId/jobs/:jobId` | Single job detail |
 | `GET`  | `/api/admin/stats` | System stats |
+| `GET`  | `/api/admin/jobs` | Recent 50 jobs (all customers) |
+| `POST` | `/api/admin/cron/run` | Force a daily cron pass |
 | `POST` | `/webhook/github` | GitHub webhook receiver |
 | `POST` | `/webhook/stripe` | Stripe webhook receiver |
-| `GET`  | `/api/health` | Health check |
+| `GET`  | `/api/health` | Health check (queue + job stats) |
 
 ## Pricing tiers
 
@@ -82,7 +85,24 @@ curl -X POST http://localhost:3000/api/repos/<repo-id>/trigger
 |------|-------|-------|---------|
 | Starter | $99/mo | 3 | Webhook only |
 | Pro | $299/mo | 15 | Webhook + daily cron |
-| Team | $799/mo | Unlimited | Webhook + daily + priority |
+| Team | $799/mo | Unlimited | Webhook + daily cron |
+
+## Environment variables
+
+See `.env.example` for the full list. Required:
+
+| Variable | Description |
+|----------|-------------|
+| `ANTHROPIC_API_KEY` | Claude API key |
+| `GITHUB_TOKEN` | GitHub app or PAT (`repo` + `admin:repo_hook` scopes) |
+| `GITHUB_WEBHOOK_SECRET` | Shared secret for webhook HMAC-SHA256 validation |
+| `BASE_URL` | Your deployed URL (used to register GitHub webhooks) |
+| `STRIPE_SECRET_KEY` | Stripe secret key (optional, for billing) |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret |
+| `WORK_DIR` | Temp directory for repo clones (default: `/tmp/repodoc-runs`) |
+
+Plan pricing (in cents): `PRICE_STARTER`, `PRICE_PRO`, `PRICE_TEAM`
+Stripe Price IDs: `STRIPE_PRICE_STARTER`, `STRIPE_PRICE_PRO`, `STRIPE_PRICE_TEAM`
 
 ## Deployment
 
@@ -95,40 +115,31 @@ railway init
 railway up
 ```
 
-Set all environment variables from `.env.example` in your Railway project dashboard.
-
-### Environment variables
-
-See `.env.example` for a full list. Required:
-
-- `ANTHROPIC_API_KEY` — Claude API key
-- `GITHUB_TOKEN` — GitHub app or PAT
-- `GITHUB_WEBHOOK_SECRET` — Shared secret for webhook signature validation
-- `BASE_URL` — Your deployed URL (for webhook registration)
+Set all variables from `.env.example` in your Railway project dashboard. The app includes a `railway.json` with Nixpacks builder and health check at `/api/health`.
 
 ## Architecture
 
 ```
-Trigger (webhook / cron / manual)
+Trigger (webhook / cron / manual API)
     ↓
-Express server (server.js)
+Express server  (server.js)
     ↓
-Job queue (src/queue.js) — max 3 concurrent
+Job queue       (queue.js)  — max 3 concurrent jobs
     ↓
-Claude Code runner (src/runner.js)
+Claude runner   (runner.js)
+    ├── git clone --depth 50
+    ├── writes .mcp.json + CLAUDE.md into work dir
+    └── claude -p --bare --output-format stream-json
+            ↓
+        MCP servers: filesystem + github
+            ↓
+        PR opened on customer's repo
     ↓
-claude -p --bare --output-format stream-json
-    ↓
-MCP servers: filesystem + github
-    ↓
-PR opened on customer's repo
-    ↓
-Job result saved to SQLite (src/db.js)
+Result saved    (db.js)  — SQLite with WAL mode
 ```
+
+See [docs/architecture.md](docs/architecture.md) for a deeper dive.
 
 ## License
 
 MIT
-=======
-# repodoc
->>>>>>> 924084018ecb24270db704ef8bf04f6dd62570e4
