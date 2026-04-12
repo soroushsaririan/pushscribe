@@ -1,7 +1,7 @@
 {
   "name": "pushscribe",
-  "version": "1.0.0",
-  "description": "Living codebase documentation engine powered by Claude Code",
+  "version": "1.1.0",
+  "description": "Living codebase documentation engine",
   "type": "module",
   "main": "server.js",
   "scripts": {
