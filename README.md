@@ -1,30 +1,19 @@
-<<<<<<< HEAD
 # PushScribe
 
-**Living codebase documentation engine powered by Claude Code CLI.**
+**Living codebase documentation engine — keeps your docs in sync with every push.**
 
-PushScribe connects to your GitHub repositories and automatically rewrites your docs every time code changes. No human writing required.
+PushScribe connects to your GitHub repositories and automatically rewrites your docs every time code changes. No manual writing required.
 
 ## How it works
 
 1. A GitHub webhook fires when code is pushed to `main`
 2. PushScribe enqueues a job and responds to GitHub in <100ms
-3. A headless `claude -p --bare` process clones the repo, reads what changed, rewrites the docs, and opens a PR
+3. A documentation agent clones the repo, reads what changed, rewrites the docs, and opens a PR
 4. You merge the PR — done
-
-The core is a single Claude Code command:
-
-```bash
-claude -p "<focused prompt>" \
-  --bare \
-  --allowedTools "Read,Write,Bash(git log *),Bash(git diff *),Bash(git add *),Bash(git commit *),Bash(git push *)" \
-  --output-format stream-json
-```
 
 ## Requirements
 
 - Node.js 18+
-- [Claude Code CLI](https://docs.claude.com/en/docs/claude-code/overview) (`npm install -g @anthropic-ai/claude-code`)
 - Anthropic API key
 - GitHub token (with `repo` + `admin:repo_hook` scopes)
 
@@ -32,7 +21,7 @@ claude -p "<focused prompt>" \
 
 ```bash
 # 1. Clone and install
-git clone https://github.com/yourname/pushscribe
+git clone https://github.com/soroushsaririan/pushscribe
 cd pushscribe
 npm install
 
@@ -101,7 +90,7 @@ Set all environment variables from `.env.example` in your Railway project dashbo
 
 See `.env.example` for a full list. Required:
 
-- `ANTHROPIC_API_KEY` — Claude API key
+- `ANTHROPIC_API_KEY` — AI API key
 - `GITHUB_TOKEN` — GitHub app or PAT
 - `GITHUB_WEBHOOK_SECRET` — Shared secret for webhook signature validation
 - `BASE_URL` — Your deployed URL (for webhook registration)
@@ -113,22 +102,17 @@ Trigger (webhook / cron / manual)
     ↓
 Express server (server.js)
     ↓
-Job queue (src/queue.js) — max 3 concurrent
+Job queue (queue.js) — max 3 concurrent
     ↓
-Claude Code runner (src/runner.js)
-    ↓
-claude -p --bare --output-format stream-json
+Documentation runner (runner.js)
     ↓
 MCP servers: filesystem + github
     ↓
 PR opened on customer's repo
     ↓
-Job result saved to SQLite (src/db.js)
+Job result saved to SQLite (db.js)
 ```
 
 ## License
 
 MIT
-=======
-# pushscribe
->>>>>>> 924084018ecb24270db704ef8bf04f6dd62570e4
