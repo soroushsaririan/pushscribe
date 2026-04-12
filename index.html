@@ -1,0 +1,1120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PushScribe — Living Documentation Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Syne:wght@400;500;600;700;800&family=Inter:wght@300;400;500&display=swap" rel="stylesheet" />
+
+<style>
+:root {
+  --bg:       #0a0a0b;
+  --bg2:      #111114;
+  --bg3:      #18181c;
+  --border:   rgba(255,255,255,0.07);
+  --border2:  rgba(255,255,255,0.13);
+  --text:     #e8e8e8;
+  --muted:    #6e6e7a;
+  --accent:   #00e5a0;
+  --accent2:  #00b87d;
+  --warn:     #f0a500;
+  --danger:   #ff4d4d;
+  --purple:   #9b7fff;
+  --mono:     'IBM Plex Mono', monospace;
+  --sans:     'Syne', sans-serif;
+  --body:     'Inter', sans-serif;
+  --r:        6px;
+  --r2:       10px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--body);
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* ─── Layout ─── */
+.shell {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  grid-template-rows: 56px 1fr;
+  min-height: 100vh;
+}
+
+/* ─── Top bar ─── */
+header {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--sans);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.logo-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 10px var(--accent); }
+  50% { opacity: 0.6; box-shadow: 0 0 4px var(--accent); }
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.badge-plan {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--accent2);
+  color: var(--accent);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ─── Sidebar ─── */
+nav {
+  border-right: 1px solid var(--border);
+  background: var(--bg2);
+  padding: 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nav-section {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  padding: 14px 20px 6px;
+  text-transform: uppercase;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 20px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 13.5px;
+  border-left: 2px solid transparent;
+  transition: all 0.12s;
+}
+
+.nav-item:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+.nav-item.active { color: var(--accent); border-left-color: var(--accent); background: rgba(0,229,160,0.06); }
+.nav-icon { width: 16px; height: 16px; opacity: 0.7; flex-shrink: 0; }
+.nav-item.active .nav-icon { opacity: 1; }
+
+/* ─── Main content ─── */
+main {
+  padding: 28px 32px;
+  overflow-y: auto;
+  background: var(--bg);
+}
+
+.page { display: none; }
+.page.active { display: block; }
+
+h1 {
+  font-family: var(--sans);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.page-sub {
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 28px;
+}
+
+/* ─── Stat grid ─── */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+.stat-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  padding: 18px 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent) 0%, transparent 100%);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.stat-card:hover::before { opacity: 1; }
+
+.stat-label {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 10px;
+}
+
+.stat-value {
+  font-family: var(--sans);
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.stat-sub {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+.stat-value.green { color: var(--accent); }
+.stat-value.warn  { color: var(--warn); }
+
+/* ─── Section header ─── */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.section-title {
+  font-family: var(--sans);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* ─── Table ─── */
+.table-wrap {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+thead th {
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg3);
+}
+
+tbody td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+tbody tr:last-child td { border-bottom: none; }
+
+tbody tr:hover td { background: rgba(255,255,255,0.02); }
+
+/* ─── Status badges ─── */
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-weight: 500;
+}
+
+.status::before {
+  content: '';
+  width: 6px; height: 6px;
+  border-radius: 50%;
+}
+
+.status-done    { background: rgba(0,229,160,0.1);  color: var(--accent); }
+.status-done::before { background: var(--accent); }
+.status-running { background: rgba(155,127,255,0.1); color: var(--purple); }
+.status-running::before { background: var(--purple); animation: pulse 1s infinite; }
+.status-queued  { background: rgba(240,165,0,0.1);  color: var(--warn); }
+.status-queued::before  { background: var(--warn); }
+.status-failed  { background: rgba(255,77,77,0.1);  color: var(--danger); }
+.status-failed::before  { background: var(--danger); }
+
+/* ─── Buttons ─── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: var(--r);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all 0.12s;
+  font-family: var(--body);
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #000;
+}
+.btn-primary:hover { background: var(--accent2); transform: translateY(-1px); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border2);
+}
+.btn-ghost:hover { color: var(--text); border-color: var(--border2); background: rgba(255,255,255,0.05); }
+
+.btn-danger {
+  background: rgba(255,77,77,0.1);
+  color: var(--danger);
+  border: 1px solid rgba(255,77,77,0.3);
+}
+.btn-danger:hover { background: rgba(255,77,77,0.2); }
+
+.btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+/* ─── Form elements ─── */
+.form-group { margin-bottom: 16px; }
+.form-label {
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-bottom: 8px;
+  display: block;
+}
+
+input[type=text], input[type=email], select {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  padding: 10px 14px;
+  border-radius: var(--r);
+  font-size: 14px;
+  font-family: var(--body);
+  outline: none;
+  transition: border-color 0.12s;
+}
+
+input[type=text]:focus, input[type=email]:focus, select:focus {
+  border-color: var(--accent);
+}
+
+/* ─── Panel / card ─── */
+.panel {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+/* ─── Repo card ─── */
+.repo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.repo-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  padding: 18px 20px;
+  cursor: pointer;
+  transition: all 0.12s;
+  position: relative;
+}
+
+.repo-card:hover {
+  border-color: var(--border2);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+
+.repo-name {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.repo-meta {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 14px;
+}
+
+.repo-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ─── Log viewer ─── */
+.log-viewer {
+  background: #050505;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 16px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: #a8a8b0;
+  max-height: 400px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  line-height: 1.8;
+}
+
+/* ─── Empty state ─── */
+.empty {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--muted);
+}
+
+.empty-icon { font-size: 32px; margin-bottom: 12px; opacity: 0.4; }
+.empty-text { font-size: 14px; }
+
+/* ─── Modal ─── */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-overlay.open { display: flex; }
+
+.modal {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  padding: 28px;
+  width: 100%;
+  max-width: 480px;
+  animation: slideUp 0.2s ease;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(12px); opacity: 0; }
+  to   { transform: translateY(0);   opacity: 1; }
+}
+
+.modal-title {
+  font-family: var(--sans);
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  letter-spacing: -0.01em;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 24px;
+}
+
+/* ─── Toast ─── */
+#toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.toast {
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: var(--r);
+  padding: 12px 18px;
+  font-size: 13px;
+  animation: toastIn 0.2s ease;
+  max-width: 320px;
+}
+
+.toast.success { border-left: 3px solid var(--accent); }
+.toast.error   { border-left: 3px solid var(--danger); }
+
+@keyframes toastIn {
+  from { transform: translateX(20px); opacity: 0; }
+  to   { transform: translateX(0);   opacity: 1; }
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 900px) {
+  .shell { grid-template-columns: 1fr; }
+  nav { display: none; }
+  .stat-grid { grid-template-columns: repeat(2,1fr); }
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+<!-- ─── Header ─── -->
+<header>
+  <a class="logo" href="#">
+    <div class="logo-dot"></div>
+    PushScribe
+  </a>
+  <div class="header-right">
+    <span class="badge-plan" id="plan-badge">Pro</span>
+    <button class="btn btn-ghost" style="font-size:12px;" onclick="navigate('settings')">Settings</button>
+  </div>
+</header>
+
+<!-- ─── Sidebar ─── -->
+<nav>
+  <div class="nav-section">Overview</div>
+  <div class="nav-item active" onclick="navigate('dashboard')">
+    <svg class="nav-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2h5v5H2zm7 0h5v5H9zm-7 7h5v5H2zm7 0h5v5H9z" opacity=".7"/></svg>
+    Dashboard
+  </div>
+  <div class="nav-item" onclick="navigate('repos')">
+    <svg class="nav-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 1 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5Z"/></svg>
+    Repositories
+  </div>
+  <div class="nav-item" onclick="navigate('jobs')">
+    <svg class="nav-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M1.5 2.75a.75.75 0 0 0 0 1.5h13a.75.75 0 0 0 0-1.5zm0 4a.75.75 0 0 0 0 1.5H7a.75.75 0 0 0 0-1.5zm0 4a.75.75 0 0 0 0 1.5H7a.75.75 0 0 0 0-1.5z"/></svg>
+    Run History
+  </div>
+
+  <div class="nav-section" style="margin-top:12px;">Admin</div>
+  <div class="nav-item" onclick="navigate('customers')">
+    <svg class="nav-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3.5 14s-1 0-1-1 1-4 5.5-4 5.5 3 5.5 4-1 1-1 1z"/></svg>
+    Customers
+  </div>
+  <div class="nav-item" onclick="navigate('settings')">
+    <svg class="nav-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492zM5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0z"/><path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.892 3.433-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.892-1.64-.901-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52z"/></svg>
+    Settings
+  </div>
+</nav>
+
+<!-- ─── Main ─── -->
+<main>
+
+  <!-- ── Dashboard ── -->
+  <div id="page-dashboard" class="page active">
+    <h1>Overview</h1>
+    <p class="page-sub">System health and recent activity</p>
+
+    <div class="stat-grid" id="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Total runs</div>
+        <div class="stat-value" id="stat-total">—</div>
+        <div class="stat-sub">All time</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Successful</div>
+        <div class="stat-value green" id="stat-success">—</div>
+        <div class="stat-sub" id="stat-success-pct">— success rate</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Running now</div>
+        <div class="stat-value" id="stat-running">—</div>
+        <div class="stat-sub" id="stat-queued-val">— queued</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Avg duration</div>
+        <div class="stat-value" id="stat-duration">—</div>
+        <div class="stat-sub">Per run</div>
+      </div>
+    </div>
+
+    <div class="section-header">
+      <div class="section-title">Recent runs</div>
+      <button class="btn btn-ghost" onclick="loadJobs()">↻ Refresh</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Repository</th>
+            <th>Trigger</th>
+            <th>Status</th>
+            <th>PR</th>
+            <th>Duration</th>
+            <th>Started</th>
+          </tr>
+        </thead>
+        <tbody id="jobs-table-body">
+          <tr><td colspan="6"><div class="empty"><div class="empty-icon">⏳</div><div class="empty-text">Loading...</div></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Repositories ── -->
+  <div id="page-repos" class="page">
+    <h1>Repositories</h1>
+    <p class="page-sub">Connected repos that PushScribe monitors</p>
+
+    <div style="display:flex; gap:10px; margin-bottom:20px;">
+      <button class="btn btn-primary" onclick="openAddRepo()">+ Connect repo</button>
+      <button class="btn btn-ghost" onclick="loadRepos()">↻ Refresh</button>
+    </div>
+
+    <div class="repo-grid" id="repos-grid">
+      <div class="empty"><div class="empty-text">Loading...</div></div>
+    </div>
+  </div>
+
+  <!-- ── Run History ── -->
+  <div id="page-jobs" class="page">
+    <h1>Run History</h1>
+    <p class="page-sub">Full log of all documentation runs</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Job ID</th>
+            <th>Repository</th>
+            <th>Trigger</th>
+            <th>Status</th>
+            <th>Tokens</th>
+            <th>Cost</th>
+            <th>PR</th>
+            <th>Started</th>
+          </tr>
+        </thead>
+        <tbody id="all-jobs-body">
+          <tr><td colspan="8"><div class="empty"><div class="empty-text">Loading...</div></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Customers ── -->
+  <div id="page-customers" class="page">
+    <h1>Customers</h1>
+    <p class="page-sub">All registered accounts</p>
+
+    <div style="margin-bottom:20px;">
+      <button class="btn btn-primary" onclick="openAddCustomer()">+ Add customer</button>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Email</th>
+            <th>Plan</th>
+            <th>Status</th>
+            <th>Repos</th>
+            <th>Joined</th>
+          </tr>
+        </thead>
+        <tbody id="customers-table-body">
+          <tr><td colspan="5"><div class="empty"><div class="empty-text">Loading...</div></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Settings ── -->
+  <div id="page-settings" class="page">
+    <h1>Settings</h1>
+    <p class="page-sub">Environment and integration configuration</p>
+
+    <div class="panel">
+      <div class="section-title" style="margin-bottom:16px;">API Keys</div>
+      <div class="form-group">
+        <label class="form-label">Anthropic API Key</label>
+        <input type="text" placeholder="sk-ant-..." id="cfg-anthropic" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">GitHub Token</label>
+        <input type="text" placeholder="ghp_..." id="cfg-github" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">GitHub Webhook Secret</label>
+        <input type="text" placeholder="your-secret" id="cfg-webhook-secret" />
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="section-title" style="margin-bottom:16px;">Stripe</div>
+      <div class="form-group">
+        <label class="form-label">Stripe Secret Key</label>
+        <input type="text" placeholder="sk_live_..." id="cfg-stripe" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Webhook Endpoint</label>
+        <code style="font-family:var(--mono); font-size:12px; color:var(--accent);" id="webhook-url">Loading...</code>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="section-title" style="margin-bottom:16px;">Queue</div>
+      <div class="stat-grid" style="grid-template-columns:repeat(3,1fr);">
+        <div class="stat-card">
+          <div class="stat-label">Running</div>
+          <div class="stat-value" id="q-running">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Queued</div>
+          <div class="stat-value" id="q-queued">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Concurrency</div>
+          <div class="stat-value" id="q-max">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<!-- ─── Add Repo Modal ─── -->
+<div class="modal-overlay" id="modal-add-repo">
+  <div class="modal">
+    <div class="modal-title">Connect a repository</div>
+    <div class="form-group">
+      <label class="form-label">Customer ID</label>
+      <input type="text" id="modal-customer-id" placeholder="uuid of the customer" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">GitHub owner</label>
+      <input type="text" id="modal-owner" placeholder="e.g. acme-corp" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Repository name</label>
+      <input type="text" id="modal-repo-name" placeholder="e.g. backend-api" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">GitHub token (customer's)</label>
+      <input type="text" id="modal-github-token" placeholder="ghp_..." />
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-add-repo')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitAddRepo()">Connect repo</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Add Customer Modal ─── -->
+<div class="modal-overlay" id="modal-add-customer">
+  <div class="modal">
+    <div class="modal-title">Add customer</div>
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      <input type="email" id="modal-cust-email" placeholder="founder@startup.com" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Plan</label>
+      <select id="modal-cust-plan">
+        <option value="starter">Starter — $99/mo</option>
+        <option value="pro" selected>Pro — $299/mo</option>
+        <option value="team">Team — $799/mo</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Stripe Customer ID (optional)</label>
+      <input type="text" id="modal-cust-stripe" placeholder="cus_..." />
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-add-customer')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitAddCustomer()">Create customer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Job Log Modal ─── -->
+<div class="modal-overlay" id="modal-job-log">
+  <div class="modal" style="max-width:700px;">
+    <div class="modal-title" id="log-modal-title">Run log</div>
+    <div class="log-viewer" id="log-viewer">Loading...</div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-job-log')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Toast container ─── -->
+<div id="toast-container"></div>
+
+<script>
+// ─── State ───────────────────────────────────────────────────────────────────
+const state = { customers: [], repos: [], jobs: [] }
+
+// ─── Navigation ─────────────────────────────────────────────────────────────
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'))
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'))
+  document.getElementById(`page-${page}`)?.classList.add('active')
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.textContent.trim().toLowerCase().startsWith(page.slice(0,4))) {
+      n.classList.add('active')
+    }
+  })
+
+  // Load data for the page
+  const loaders = {
+    dashboard: () => { loadStats(); loadJobs() },
+    repos:     loadRepos,
+    jobs:      loadAllJobs,
+    customers: loadCustomers,
+    settings:  loadSettings,
+  }
+  loaders[page]?.()
+}
+
+// ─── API helpers ─────────────────────────────────────────────────────────────
+async function api(path, opts = {}) {
+  const res = await fetch(`/api${path}`, {
+    headers: { 'Content-Type': 'application/json' },
+    ...opts
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }))
+    throw new Error(err.error || `API error ${res.status}`)
+  }
+  return res.json()
+}
+
+// ─── Toast ───────────────────────────────────────────────────────────────────
+function toast(msg, type = 'success') {
+  const el = document.createElement('div')
+  el.className = `toast ${type}`
+  el.textContent = msg
+  document.getElementById('toast-container').appendChild(el)
+  setTimeout(() => el.remove(), 4000)
+}
+
+// ─── Modal helpers ───────────────────────────────────────────────────────────
+function openModal(id)  { document.getElementById(id).classList.add('open') }
+function closeModal(id) { document.getElementById(id).classList.remove('open') }
+
+// ─── Formatters ──────────────────────────────────────────────────────────────
+function fmtDuration(ms) {
+  if (!ms) return '—'
+  if (ms < 1000) return `${ms}ms`
+  if (ms < 60000) return `${(ms/1000).toFixed(1)}s`
+  return `${Math.floor(ms/60000)}m ${Math.floor((ms%60000)/1000)}s`
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleString('en-US', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })
+}
+
+function fmtCost(cents) {
+  if (!cents) return '—'
+  return `$${(cents/100).toFixed(3)}`
+}
+
+function statusBadge(s) {
+  return `<span class="status status-${s}">${s}</span>`
+}
+
+function triggerBadge(t) {
+  const colors = { webhook:'var(--purple)', cron:'var(--accent)', manual:'var(--warn)' }
+  return `<span style="font-family:var(--mono);font-size:11px;color:${colors[t]??'var(--muted)'};">${t}</span>`
+}
+
+// ─── Dashboard ───────────────────────────────────────────────────────────────
+async function loadStats() {
+  try {
+    const data = await api('/admin/stats')
+    const j = data.jobs ?? {}
+    const q = data.queue ?? {}
+
+    document.getElementById('stat-total').textContent   = j.total ?? 0
+    document.getElementById('stat-success').textContent = j.successful ?? 0
+    document.getElementById('stat-running').textContent = q.running ?? 0
+    document.getElementById('stat-queued-val').textContent = `${q.queued ?? 0} queued`
+
+    const pct = j.total ? Math.round((j.successful / j.total) * 100) : 0
+    document.getElementById('stat-success-pct').textContent = `${pct}% success rate`
+
+    const avg = j.avg_duration_ms
+    document.getElementById('stat-duration').textContent = fmtDuration(avg ? Math.round(avg) : null)
+  } catch (e) {
+    console.error('Stats error:', e)
+  }
+}
+
+async function loadJobs() {
+  try {
+    const jobs = await api('/admin/jobs')
+    const body = document.getElementById('jobs-table-body')
+    if (!jobs.length) {
+      body.innerHTML = `<tr><td colspan="6"><div class="empty"><div class="empty-icon">📭</div><div class="empty-text">No runs yet. Connect a repo to get started.</div></div></td></tr>`
+      return
+    }
+    body.innerHTML = jobs.map(j => `
+      <tr>
+        <td><code style="font-family:var(--mono);font-size:12px;">${j.full_name ?? '—'}</code></td>
+        <td>${triggerBadge(j.trigger)}</td>
+        <td>${statusBadge(j.status)}</td>
+        <td>${j.pr_url ? `<a href="${j.pr_url}" target="_blank" style="color:var(--accent);font-size:12px;font-family:var(--mono);">View PR ↗</a>` : '—'}</td>
+        <td style="color:var(--muted);">${fmtDuration(j.duration_ms)}</td>
+        <td style="color:var(--muted);">${fmtDate(j.started_at ?? j.created_at)}</td>
+      </tr>
+    `).join('')
+  } catch (e) {
+    console.error('Jobs error:', e)
+  }
+}
+
+// ─── Repos ───────────────────────────────────────────────────────────────────
+async function loadRepos() {
+  const customers = await api('/customers').catch(() => [])
+  const grid = document.getElementById('repos-grid')
+
+  if (!customers.length) {
+    grid.innerHTML = `<div class="empty"><div class="empty-icon">🔌</div><div class="empty-text">No customers yet. Add a customer first.</div></div>`
+    return
+  }
+
+  const allRepos = []
+  for (const c of customers) {
+    const repos = await api(`/customers/${c.id}/repos`).catch(() => [])
+    repos.forEach(r => allRepos.push({ ...r, customerEmail: c.email }))
+  }
+
+  if (!allRepos.length) {
+    grid.innerHTML = `<div class="empty"><div class="empty-icon">📦</div><div class="empty-text">No repos connected yet. Click "+ Connect repo" to add one.</div></div>`
+    return
+  }
+
+  grid.innerHTML = allRepos.map(r => `
+    <div class="repo-card">
+      <div class="repo-name">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="var(--muted)"><path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 1 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5Z"/></svg>
+        ${r.full_name}
+      </div>
+      <div class="repo-meta">Branch: ${r.default_branch} · ${r.customerEmail}</div>
+      <div class="repo-actions">
+        <button class="btn btn-ghost" style="font-size:12px;padding:6px 12px;" onclick="triggerRun('${r.id}', '${r.full_name}')">▶ Run now</button>
+        <button class="btn btn-ghost" style="font-size:12px;padding:6px 12px;" onclick="viewRepoJobs('${r.id}', '${r.full_name}')">History</button>
+      </div>
+    </div>
+  `).join('')
+}
+
+function openAddRepo() { openModal('modal-add-repo') }
+
+async function submitAddRepo() {
+  const customerId  = document.getElementById('modal-customer-id').value.trim()
+  const owner       = document.getElementById('modal-owner').value.trim()
+  const name        = document.getElementById('modal-repo-name').value.trim()
+  const githubToken = document.getElementById('modal-github-token').value.trim()
+
+  if (!customerId || !owner || !name) { toast('All fields required', 'error'); return }
+
+  try {
+    await api(`/customers/${customerId}/repos`, {
+      method: 'POST',
+      body: JSON.stringify({ owner, name, github_token: githubToken })
+    })
+    toast(`Connected ${owner}/${name}`)
+    closeModal('modal-add-repo')
+    loadRepos()
+  } catch (e) {
+    toast(e.message, 'error')
+  }
+}
+
+async function triggerRun(repoId, fullName) {
+  try {
+    const r = await api(`/repos/${repoId}/trigger`, { method: 'POST' })
+    toast(`Job ${r.jobId.slice(0,8)} queued for ${fullName}`)
+  } catch (e) {
+    toast(e.message, 'error')
+  }
+}
+
+async function viewRepoJobs(repoId, fullName) {
+  try {
+    const repoJobs = await api(`/repos/${repoId}/jobs`)
+    const log = repoJobs.map(j => `[${j.status.padEnd(7)}] ${j.trigger.padEnd(7)} | ${fmtDate(j.created_at)} | ${fmtDuration(j.duration_ms)} | ${j.pr_url ?? 'no PR'}`).join('\n') || 'No runs yet'
+    document.getElementById('log-modal-title').textContent = `Run history — ${fullName}`
+    document.getElementById('log-viewer').textContent = log
+    openModal('modal-job-log')
+  } catch (e) {
+    toast(e.message, 'error')
+  }
+}
+
+// ─── All Jobs ─────────────────────────────────────────────────────────────────
+async function loadAllJobs() {
+  try {
+    const allJobs = await api('/admin/jobs')
+    const body = document.getElementById('all-jobs-body')
+    if (!allJobs.length) {
+      body.innerHTML = `<tr><td colspan="8"><div class="empty"><div class="empty-text">No runs yet.</div></div></td></tr>`
+      return
+    }
+    body.innerHTML = allJobs.map(j => `
+      <tr>
+        <td><code style="font-family:var(--mono);font-size:11px;color:var(--muted);">${j.id.slice(0,8)}</code></td>
+        <td><code style="font-family:var(--mono);font-size:12px;">${j.full_name ?? '—'}</code></td>
+        <td>${triggerBadge(j.trigger)}</td>
+        <td>${statusBadge(j.status)}</td>
+        <td style="color:var(--muted);font-family:var(--mono);font-size:12px;">${j.tokens_used?.toLocaleString() ?? '—'}</td>
+        <td style="color:var(--muted);">${fmtCost(j.cost_cents)}</td>
+        <td>${j.pr_url ? `<a href="${j.pr_url}" target="_blank" style="color:var(--accent);font-size:12px;">PR ↗</a>` : '—'}</td>
+        <td style="color:var(--muted);">${fmtDate(j.created_at)}</td>
+      </tr>
+    `).join('')
+  } catch (e) {
+    console.error(e)
+  }
+}
+
+// ─── Customers ───────────────────────────────────────────────────────────────
+async function loadCustomers() {
+  try {
+    const customers = await api('/customers')
+    const body = document.getElementById('customers-table-body')
+    if (!customers.length) {
+      body.innerHTML = `<tr><td colspan="5"><div class="empty"><div class="empty-text">No customers yet.</div></div></td></tr>`
+      return
+    }
+    body.innerHTML = customers.map(c => `
+      <tr>
+        <td>${c.email}</td>
+        <td><span class="badge-plan" style="font-size:11px;">${c.plan}</span></td>
+        <td>${statusBadge(c.status)}</td>
+        <td>—</td>
+        <td style="color:var(--muted);">${fmtDate(c.created_at)}</td>
+      </tr>
+    `).join('')
+  } catch (e) {
+    console.error(e)
+  }
+}
+
+function openAddCustomer() { openModal('modal-add-customer') }
+
+async function submitAddCustomer() {
+  const email    = document.getElementById('modal-cust-email').value.trim()
+  const plan     = document.getElementById('modal-cust-plan').value
+  const stripe_id = document.getElementById('modal-cust-stripe').value.trim()
+
+  if (!email) { toast('Email required', 'error'); return }
+
+  try {
+    await api('/customers', { method: 'POST', body: JSON.stringify({ email, plan, stripe_id: stripe_id || undefined }) })
+    toast(`Customer ${email} created`)
+    closeModal('modal-add-customer')
+    loadCustomers()
+  } catch (e) {
+    toast(e.message, 'error')
+  }
+}
+
+// ─── Settings ────────────────────────────────────────────────────────────────
+async function loadSettings() {
+  try {
+    const h = await api('/health')
+    document.getElementById('q-running').textContent = h.queue?.running ?? 0
+    document.getElementById('q-queued').textContent  = h.queue?.queued  ?? 0
+    document.getElementById('q-max').textContent     = h.queue?.max     ?? 0
+  } catch (e) {}
+
+  document.getElementById('webhook-url').textContent =
+    `${location.origin}/webhook/github`
+}
+
+// ─── Close modals on overlay click ───────────────────────────────────────────
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) overlay.classList.remove('open')
+  })
+})
+
+// ─── Auto-refresh on dashboard ───────────────────────────────────────────────
+setInterval(() => {
+  if (document.getElementById('page-dashboard').classList.contains('active')) {
+    loadStats()
+    loadJobs()
+  }
+}, 15_000)
+
+// ─── Init ────────────────────────────────────────────────────────────────────
+navigate('dashboard')
+</script>
+</body>
+</html>
